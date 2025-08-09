@@ -32,6 +32,8 @@ Optionally set SOLANA_RPC_URL for a custom endpoint (default: https://api.mainne
 ## API
 - GET /block/:slot/tx-count → { slot: number, transactionCount: number }
 
+See `docs/solana-overview.md` for concepts (slots, blocks, verification steps).
+
 ## Tests
 \n\tpnpm --filter api test
 
