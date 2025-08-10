@@ -12,19 +12,72 @@ export class SolanaService {
     this.connection = new Connection(rpcUrl, 'confirmed');
   }
 
-  async getTransactionCountForSlot(slot: number): Promise<number> {
-    const cacheKey = `txCount:${slot}`;
+  async getLatestSlot(commitment: 'confirmed' | 'finalized' = 'confirmed'): Promise<number> {
+    const cacheKey = `latestSlot:${commitment}`;
+    const cached = await this.cache.get<number>(cacheKey);
+    if (typeof cached === 'number') return cached;
+    const slot = await this.connection.getSlot(commitment);
+    await this.cache.set(cacheKey, slot, 2);
+    return slot;
+  }
+
+  async getTransactionCountForSlot(
+    slot: number,
+    commitment: 'confirmed' | 'finalized' = 'confirmed',
+  ): Promise<number> {
+    const cacheKey = `txCount:${slot}:${commitment}`;
     const cached = await this.cache.get<number>(cacheKey);
     if (typeof cached === 'number') return cached;
 
-    // We fetch the block and count the transactions array length
-    const block = await this.connection.getBlock(slot, {
-      maxSupportedTransactionVersion: 0,
-    });
-    const count = block?.transactions?.length ?? 0;
+    // Fetch the block and count the transactions. Handle nulls / RPC limitations gracefully
+    let count = 0;
+    try {
+      const block = await this.connection.getBlock(slot, {
+        maxSupportedTransactionVersion: 0,
+        transactionDetails: 'full',
+        commitment,
+      } as any);
+      count = block?.transactions?.length ?? 0;
+    } catch (_err) {
+      // Treat unavailable/old blocks as zero transactions instead of failing the API
+      count = 0;
+    }
 
-    await this.cache.set(cacheKey, count, 10_000);
+    await this.cache.set(cacheKey, count, 10);
     return count;
+  }
+
+  async getBlockSummary(
+    slot: number,
+    commitment: 'confirmed' | 'finalized' = 'confirmed',
+  ): Promise<{ slot: number; transactionCount: number; blockhash?: string; parentSlot?: number; blockTime?: number | null }>
+  {
+    const cacheKey = `blockSummary:${slot}:${commitment}`;
+    const cached = await this.cache.get<{
+      slot: number; transactionCount: number; blockhash?: string; parentSlot?: number; blockTime?: number | null
+    }>(cacheKey);
+    if (cached) return cached;
+
+    let summary = { slot, transactionCount: 0, blockhash: undefined as string | undefined, parentSlot: undefined as number | undefined, blockTime: undefined as number | null | undefined };
+    try {
+      const block = await this.connection.getBlock(slot, {
+        maxSupportedTransactionVersion: 0,
+        transactionDetails: 'full',
+        commitment,
+      } as any);
+      summary = {
+        slot,
+        transactionCount: block?.transactions?.length ?? 0,
+        blockhash: (block as any)?.blockhash,
+        parentSlot: (block as any)?.parentSlot,
+        blockTime: (block as any)?.blockTime ?? null,
+      };
+    } catch (_err) {
+      // leave defaults; indicates missing/unavailable block
+    }
+
+    await this.cache.set(cacheKey, summary, 10);
+    return summary;
   }
 }
 

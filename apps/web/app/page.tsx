@@ -1,26 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function Home() {
   const [slot, setSlot] = useState<string>("");
   const [count, setCount] = useState<number | null>(null);
+  const [meta, setMeta] = useState<{ blockTime?: number | null; parentSlot?: number; blockhash?: string } | null>(null);
+  const [commitment, setCommitment] = useState<'confirmed' | 'finalized'>('confirmed');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const apiUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000", []);
+
+  // Debounced fetch on slot change (typeahead)
+  useEffect(() => {
+    if (!slot) {
+      setCount(null);
+      setError(null);
+      return;
+    }
+    const controller = new AbortController();
+    const handle = setTimeout(async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${apiUrl}/block/${slot}/summary?commitment=${commitment}`, { signal: controller.signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as { slot: number; transactionCount: number; blockTime?: number | null; parentSlot?: number; blockhash?: string };
+        setCount(data.transactionCount);
+        setMeta({ blockTime: data.blockTime ?? null, parentSlot: data.parentSlot, blockhash: data.blockhash });
+      } catch (err: any) {
+        if (err.name !== "AbortError") setError(err.message ?? "Failed to fetch");
+      } finally {
+        setLoading(false);
+      }
+    }, 400);
+    return () => {
+      controller.abort();
+      clearTimeout(handle);
+    };
+  }, [slot, commitment, apiUrl]);
+
+  const useLatest = async () => {
     setLoading(true);
     setError(null);
-    setCount(null);
     try {
-      const url = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-      const res = await fetch(`${url}/block/${slot}/tx-count`);
+      const res = await fetch(`${apiUrl}/block/latest`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { slot: number; transactionCount: number };
-      setCount(data.transactionCount);
+      const data = (await res.json()) as { slot: number };
+      setSlot(String(data.slot));
     } catch (err: any) {
-      setError(err.message ?? "Failed to fetch");
+      setError(err.message ?? "Failed to fetch latest slot");
     } finally {
       setLoading(false);
     }
@@ -29,27 +59,55 @@ export default function Home() {
   return (
     <div className="p-8 max-w-xl mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Solana Block Transaction Count</h1>
-      <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
-        <input
-          type="number"
-          placeholder="Enter block slot"
-          value={slot}
-          onChange={(e) => setSlot(e.target.value)}
-          className="border px-3 py-2 rounded w-full"
-          required
-          min={0}
-        />
-        <button
-          type="submit"
-          className="bg-black text-white px-4 py-2 rounded disabled:opacity-50"
-          disabled={loading || !slot}
-        >
-          {loading ? "Loading..." : "Lookup"}
-        </button>
-      </form>
+      <div className="flex flex-col gap-3 mb-4">
+        <div className="flex gap-2">
+          <input
+            type="number"
+            placeholder="Enter block slot"
+            value={slot}
+            onChange={(e) => setSlot(e.target.value)}
+            className="border px-3 py-2 rounded w-full"
+            min={0}
+          />
+          <select
+            value={commitment}
+            onChange={(e) => setCommitment(e.target.value as 'confirmed' | 'finalized')}
+            className="border px-3 py-2 rounded"
+            title="Commitment"
+          >
+            <option value="confirmed">confirmed</option>
+            <option value="finalized">finalized</option>
+          </select>
+          <button
+            onClick={useLatest}
+            className="border px-3 py-2 rounded bg-white hover:bg-gray-50"
+            type="button"
+          >
+            Use latest slot
+          </button>
+        </div>
+        <p className="text-sm text-gray-600">Typing auto-fetches after 400ms. Old/missing slots may return 0. Choose commitment for consistency.</p>
+      </div>
       {error && <p className="text-red-600">{error}</p>}
       {count !== null && (
-        <p className="text-lg">Transactions in slot {slot}: {count}</p>
+        <div className="rounded border p-4 bg-gray-50">
+          <div className="flex items-baseline justify-between">
+            <p className="text-lg font-medium">Slot {slot}</p>
+            <span className="text-xs px-2 py-0.5 rounded bg-gray-200">{commitment}</span>
+          </div>
+          <p className="text-2xl mt-2">{count.toLocaleString()} transactions</p>
+          {meta && (
+            <div className="mt-3 text-sm text-gray-700 space-y-1">
+              {meta.blockTime !== undefined && (
+                <p>Time: {meta.blockTime ? new Date(meta.blockTime * 1000).toLocaleString() : 'unknown'}</p>
+              )}
+              {meta.parentSlot !== undefined && <p>Parent slot: {meta.parentSlot}</p>}
+              {meta.blockhash && (
+                <p className="truncate">Blockhash: <span className="font-mono">{meta.blockhash}</span></p>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
