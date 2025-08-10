@@ -1,0 +1,11 @@
+# Ignore unnecessary files for API image
+node_modules
+**/node_modules
+.git
+.gitignore
+apps/web/.next
+apps/web/node_modules
+apps/web
+**/.env*
+dist
+coverage
