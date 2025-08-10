@@ -13,7 +13,6 @@ export default function Home() {
 
   const apiUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000", []);
 
-  // Debounced fetch on slot change (typeahead)
   useEffect(() => {
     if (!slot) {
       setCount(null);
@@ -30,8 +29,12 @@ export default function Home() {
         const data = (await res.json()) as { slot: number; transactionCount: number; blockTime?: number | null; parentSlot?: number; blockhash?: string };
         setCount(data.transactionCount);
         setMeta({ blockTime: data.blockTime ?? null, parentSlot: data.parentSlot, blockhash: data.blockhash });
-      } catch (err: any) {
-        if (err.name !== "AbortError") setError(err.message ?? "Failed to fetch");
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+        } else {
+          const message = err instanceof Error ? err.message : "Failed to fetch";
+          setError(message);
+        }
       } finally {
         setLoading(false);
       }
@@ -50,8 +53,9 @@ export default function Home() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { slot: number };
       setSlot(String(data.slot));
-    } catch (err: any) {
-      setError(err.message ?? "Failed to fetch latest slot");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to fetch latest slot";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -124,7 +128,10 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 <select
                   value={explorer}
-                  onChange={(e) => setExplorer(e.target.value as any)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === 'solscan' || v === 'solanafm' || v === 'explorer') setExplorer(v);
+                  }}
                   className="input w-[150px]"
                 >
                   <option value="solscan">Solscan</option>

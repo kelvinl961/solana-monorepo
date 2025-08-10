@@ -24,6 +24,7 @@
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/config": "^4.0.0",
     "@solana/web3.js": "^1.95.3",
     "@nestjs/throttler": "^6.2.1",
     "cache-manager-ioredis-yet": "^1.2.2",
