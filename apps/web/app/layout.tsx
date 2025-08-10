@@ -22,12 +22,20 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const toggleTheme = () => {
+    if (typeof document !== 'undefined') {
+      document.body.classList.toggle('light');
+    }
+  };
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <header className="px-6 py-4 flex items-center justify-between">
           <h1 className="text-lg font-semibold">Solana Block Explorer (Lite)</h1>
-          <div className="badge">alpha</div>
+          <div className="flex items-center gap-3">
+            <button className="btn-secondary" onClick={toggleTheme} type="button">Toggle theme</button>
+            <div className="badge">alpha</div>
+          </div>
         </header>
         <main className="px-6 pb-10 max-w-3xl mx-auto">
           {children}

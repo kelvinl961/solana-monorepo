@@ -9,6 +9,7 @@ export default function Home() {
   const [commitment, setCommitment] = useState<'confirmed' | 'finalized'>('confirmed');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [explorer, setExplorer] = useState<'solscan' | 'solanafm' | 'explorer'>('solscan');
 
   const apiUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000", []);
 
@@ -88,7 +89,7 @@ export default function Home() {
         </div>
         <p className="text-sm" style={{ color: 'var(--sol-muted)' }}>Typing auto-fetches after 400ms. Old/missing slots may return 0. Choose commitment for consistency.</p>
       </div>
-      {error && <p className="text-red-600">{error}</p>}
+      {error && <p className="text-red-400">{error}</p>}
       {count !== null && (
         <div className="rounded border p-4" style={{ borderColor: 'var(--sol-border)', background: '#0b1224' }}>
           <div className="flex items-baseline justify-between">
@@ -97,7 +98,7 @@ export default function Home() {
           </div>
           <p className="text-2xl mt-2" style={{ color: 'var(--sol-accent)' }}>{count.toLocaleString()} transactions</p>
           {meta && (
-            <div className="mt-3 text-sm text-gray-700 space-y-1">
+            <div className="mt-3 text-sm space-y-1" style={{ color: 'var(--sol-muted)' }}>
               {meta.blockTime !== undefined && (
                 <p>Time: {meta.blockTime ? new Date(meta.blockTime * 1000).toLocaleString() : 'unknown'}</p>
               )}
@@ -105,16 +106,25 @@ export default function Home() {
               {meta.blockhash && (
                 <p className="truncate">Blockhash: <span className="font-mono">{meta.blockhash}</span></p>
               )}
-              <p>
+              <div className="flex items-center gap-2">
+                <select
+                  value={explorer}
+                  onChange={(e) => setExplorer(e.target.value as any)}
+                  className="input w-[150px]"
+                >
+                  <option value="solscan">Solscan</option>
+                  <option value="solanafm">SolanaFM</option>
+                  <option value="explorer">Explorer</option>
+                </select>
                 <a
-                  className="text-blue-600 hover:underline"
-                  href={`https://solscan.io/block/${slot}`}
+                  className="text-blue-400 hover:underline"
+                  href={explorer === 'solscan' ? `https://solscan.io/block/${slot}` : explorer === 'solanafm' ? `https://solana.fm/block/${slot}` : `https://explorer.solana.com/block/${slot}`}
                   target="_blank"
                   rel="noreferrer"
                 >
-                  View on Solscan ↗
+                  Open ↗
                 </a>
-              </p>
+              </div>
             </div>
           )}
         </div>

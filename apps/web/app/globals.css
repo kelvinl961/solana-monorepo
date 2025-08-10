@@ -77,3 +77,19 @@ body {
 @keyframes shimmer {
   100% { transform: translateX(100%); }
 }
+
+/* Light theme overrides via .light class on body */
+body.light {
+  --sol-bg: #f7f9fc;
+  --sol-fg: #0b0f1a;
+  --sol-card: #ffffff;
+  --sol-border: #d8e1f0;
+  --sol-muted: #5b6c8b;
+  /* accents unchanged for brand consistency */
+}
+
+body.light {
+  background: radial-gradient(1000px 500px at 10% -10%, rgba(153,69,255,0.12), transparent 50%),
+              radial-gradient(900px 450px at 90% -10%, rgba(20,241,149,0.10), transparent 50%),
+              var(--sol-bg);
+}
