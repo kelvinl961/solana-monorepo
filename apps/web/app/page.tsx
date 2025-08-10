@@ -90,7 +90,22 @@ export default function Home() {
         <p className="text-sm" style={{ color: 'var(--sol-muted)' }}>Typing auto-fetches after 400ms. Old/missing slots may return 0. Choose commitment for consistency.</p>
       </div>
       {error && <p className="text-red-400">{error}</p>}
-      {count !== null && (
+
+      {loading && slot && (
+        <div className="rounded border p-4 skeleton" style={{ borderColor: 'var(--sol-border)' }}>
+          <div className="flex items-baseline justify-between">
+            <div className="h-4 w-28 rounded bg-[rgba(255,255,255,0.06)]" />
+            <div className="h-5 w-14 rounded bg-[rgba(255,255,255,0.06)]" />
+          </div>
+          <div className="h-7 w-48 mt-3 rounded bg-[rgba(255,255,255,0.06)]" />
+          <div className="mt-3 space-y-2">
+            <div className="h-4 w-64 rounded bg-[rgba(255,255,255,0.06)]" />
+            <div className="h-4 w-40 rounded bg-[rgba(255,255,255,0.06)]" />
+            <div className="h-4 w-80 rounded bg-[rgba(255,255,255,0.06)]" />
+          </div>
+        </div>
+      )}
+      {count !== null && !loading && (
         <div className="rounded border p-4" style={{ borderColor: 'var(--sol-border)', background: '#0b1224' }}>
           <div className="flex items-baseline justify-between">
             <p className="text-lg font-medium">Slot {slot}</p>

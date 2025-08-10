@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import ThemeToggle from "./components/ThemeToggle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,7 +28,6 @@ export default function RootLayout({
         <header className="px-6 py-4 flex items-center justify-between">
           <h1 className="text-lg font-semibold">Solana Block Explorer (Lite)</h1>
           <div className="flex items-center gap-3">
-            <ThemeToggle />
             <div className="badge">alpha</div>
           </div>
         </header>
