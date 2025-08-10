@@ -26,17 +26,13 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <header className="px-6 py-4 flex items-center justify-between">
-          <h1 className="text-lg font-semibold">Solana Block Explorer (Lite)</h1>
-          <div className="flex items-center gap-3">
-            <div className="badge">alpha</div>
-          </div>
+          <h1 className="text-lg font-semibold">Solana Block Explorer (Kelvin)</h1>
+         
         </header>
         <main className="px-6 pb-10 max-w-3xl mx-auto">
           {children}
         </main>
-        <footer className="px-6 py-6 text-sm text-[var(--sol-muted)]">
-          Built with Next.js + NestJS • Data via Solana RPC
-        </footer>
+      
       </body>
     </html>
   );

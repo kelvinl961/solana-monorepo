@@ -50,7 +50,7 @@ export class SolanaService {
   async getBlockSummary(
     slot: number,
     commitment: 'confirmed' | 'finalized' = 'confirmed',
-  ): Promise<{ slot: number; transactionCount: number; blockhash?: string; parentSlot?: number; blockTime?: number | null }>
+  ): Promise<{ slot: number; transactionCount: number; blockhash?: string; parentSlot?: number; blockTime?: number | null; programs?: Array<{ programId: string; count: number }> }>
   {
     const cacheKey = `blockSummary:${slot}:${commitment}`;
     const cached = await this.cache.get<{
@@ -58,19 +58,38 @@ export class SolanaService {
     }>(cacheKey);
     if (cached) return cached;
 
-    let summary = { slot, transactionCount: 0, blockhash: undefined as string | undefined, parentSlot: undefined as number | undefined, blockTime: undefined as number | null | undefined };
+    let summary = { slot, transactionCount: 0, blockhash: undefined as string | undefined, parentSlot: undefined as number | undefined, blockTime: undefined as number | null | undefined, programs: undefined as Array<{ programId: string; count: number }> | undefined };
     try {
       const block = await this.connection.getBlock(slot, {
         maxSupportedTransactionVersion: 0,
         transactionDetails: 'full',
         commitment,
       } as any);
+      // Count programs across all transactions' instructions
+      const programCount = new Map<string, number>();
+      for (const tx of block?.transactions ?? []) {
+        const message = tx.transaction.message;
+        // legacy messages: accountKeys is string[]; v0 has staticAccounts + addressTable lookups
+        const keys: string[] = (message as any).accountKeys || (message as any).staticAccountKeys || [];
+        const instrs: Array<{ programIdIndex: number }> = (message as any).instructions || [];
+        for (const ix of instrs) {
+          const pid = keys[ix.programIdIndex];
+          if (!pid) continue;
+          programCount.set(pid, (programCount.get(pid) ?? 0) + 1);
+        }
+      }
+      const programs = Array.from(programCount.entries())
+        .map(([programId, count]) => ({ programId, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
       summary = {
         slot,
         transactionCount: block?.transactions?.length ?? 0,
         blockhash: (block as any)?.blockhash,
         parentSlot: (block as any)?.parentSlot,
         blockTime: (block as any)?.blockTime ?? null,
+        programs,
       };
     } catch (_err) {
       // leave defaults; indicates missing/unavailable block
@@ -111,7 +130,7 @@ export class SolanaService {
   }> {
     const rangeStart = Math.max(0, Math.min(start, end));
     const rangeEnd = Math.max(0, Math.max(start, end));
-    const slots: Array<{ slot: number; transactionCount: number }> = [];
+    const slots: Array<{ slot: number; transactionCount: number }>= [];
     let total = 0;
     let min: { slot: number; transactionCount: number } | null = null;
     let max: { slot: number; transactionCount: number } | null = null;

@@ -1,5 +1,7 @@
-import { Controller, Get, Param, ParseEnumPipe, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Get, Header, Param, ParseEnumPipe, ParseIntPipe, Query, Res } from '@nestjs/common';
 import { SolanaService } from './solana.service';
+import type { Response } from 'express';
+import { toCsv } from '../csv.util';
 
 @Controller('block')
 export class SolanaController {
@@ -30,21 +32,19 @@ export class SolanaController {
     return this.solanaService.getBlockSummary(slot, commitment ?? 'confirmed');
   }
 
-  @Get('recent')
-  async getRecent(
-    @Query('limit', ParseIntPipe) limit = 20,
-    @Query('commitment', new ParseEnumPipe(['confirmed', 'finalized'], { optional: true })) commitment?: 'confirmed' | 'finalized',
-  ) {
-    return this.solanaService.getRecentCounts(limit, commitment ?? 'confirmed');
-  }
-
-  @Get('range/:start/:end')
-  async getRange(
+  @Get('range/:start/:end.csv')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="range.csv"')
+  async downloadRangeCsv(
     @Param('start', ParseIntPipe) start: number,
     @Param('end', ParseIntPipe) end: number,
-    @Query('commitment', new ParseEnumPipe(['confirmed', 'finalized'], { optional: true })) commitment?: 'confirmed' | 'finalized',
+    @Query('commitment', new ParseEnumPipe(['confirmed', 'finalized'], { optional: true })) commitment: 'confirmed' | 'finalized' = 'confirmed',
+    @Res() res: Response,
   ) {
-    return this.solanaService.getRangeCounts(start, end, commitment ?? 'confirmed');
+    const data = await this.solanaService.getRangeCounts(start, end, commitment);
+    const rows = data.slots.map(s => ({ slot: s.slot, transactionCount: s.transactionCount }));
+    const csv = toCsv(rows);
+    res.send(csv);
   }
 }
 
