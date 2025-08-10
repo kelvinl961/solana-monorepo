@@ -57,7 +57,7 @@ export default function Home() {
   };
 
   return (
-    <div className="p-8 max-w-xl mx-auto">
+    <div className="p-8 max-w-2xl mx-auto glass rounded-lg">
       <h1 className="text-2xl font-semibold mb-4">Solana Block Transaction Count</h1>
       <div className="flex flex-col gap-3 mb-4">
         <div className="flex gap-2">
@@ -66,13 +66,13 @@ export default function Home() {
             placeholder="Enter block slot"
             value={slot}
             onChange={(e) => setSlot(e.target.value)}
-            className="border px-3 py-2 rounded w-full"
+            className="input"
             min={0}
           />
           <select
             value={commitment}
             onChange={(e) => setCommitment(e.target.value as 'confirmed' | 'finalized')}
-            className="border px-3 py-2 rounded"
+            className="input w-[160px]"
             title="Commitment"
           >
             <option value="confirmed">confirmed</option>
@@ -80,22 +80,22 @@ export default function Home() {
           </select>
           <button
             onClick={useLatest}
-            className="border px-3 py-2 rounded bg-white hover:bg-gray-50"
+            className="btn-secondary"
             type="button"
           >
             Use latest slot
           </button>
         </div>
-        <p className="text-sm text-gray-600">Typing auto-fetches after 400ms. Old/missing slots may return 0. Choose commitment for consistency.</p>
+        <p className="text-sm" style={{ color: 'var(--sol-muted)' }}>Typing auto-fetches after 400ms. Old/missing slots may return 0. Choose commitment for consistency.</p>
       </div>
       {error && <p className="text-red-600">{error}</p>}
       {count !== null && (
-        <div className="rounded border p-4 bg-gray-50">
+        <div className="rounded border p-4" style={{ borderColor: 'var(--sol-border)', background: '#0b1224' }}>
           <div className="flex items-baseline justify-between">
             <p className="text-lg font-medium">Slot {slot}</p>
-            <span className="text-xs px-2 py-0.5 rounded bg-gray-200">{commitment}</span>
+            <span className="badge">{commitment}</span>
           </div>
-          <p className="text-2xl mt-2">{count.toLocaleString()} transactions</p>
+          <p className="text-2xl mt-2" style={{ color: 'var(--sol-accent)' }}>{count.toLocaleString()} transactions</p>
           {meta && (
             <div className="mt-3 text-sm text-gray-700 space-y-1">
               {meta.blockTime !== undefined && (
@@ -105,6 +105,16 @@ export default function Home() {
               {meta.blockhash && (
                 <p className="truncate">Blockhash: <span className="font-mono">{meta.blockhash}</span></p>
               )}
+              <p>
+                <a
+                  className="text-blue-600 hover:underline"
+                  href={`https://solscan.io/block/${slot}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View on Solscan ↗
+                </a>
+              </p>
             </div>
           )}
         </div>

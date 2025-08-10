@@ -1,26 +1,79 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Solana-inspired palette */
+  --sol-bg: #0b0f1a;          /* deep navy */
+  --sol-fg: #e6f1ff;          /* soft light */
+  --sol-card: #0f1629;        /* panel */
+  --sol-border: #1e2844;      /* border */
+  --sol-muted: #93a4c3;       /* muted text */
+  --sol-accent: #14f195;      /* solana green */
+  --sol-accent-2: #9945ff;    /* solana purple */
+  --sol-accent-3: #00ffa3;    /* solana mint */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--sol-bg);
+  --color-foreground: var(--sol-fg);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  min-height: 100svh;
+  background: radial-gradient(1200px 600px at 20% -10%, rgba(153,69,255,0.15), transparent 50%),
+              radial-gradient(1000px 500px at 80% -20%, rgba(20,241,149,0.12), transparent 50%),
+              var(--sol-bg);
+  color: var(--sol-fg);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.solana-gradient {
+  background: linear-gradient(135deg, var(--sol-accent) 0%, var(--sol-accent-2) 50%, var(--sol-accent-3) 100%);
+}
+
+.glass {
+  background: color-mix(in oklab, var(--sol-card) 86%, transparent);
+  border: 1px solid color-mix(in oklab, var(--sol-border) 75%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.btn-primary {
+  @apply rounded px-4 py-2 font-medium text-black;
+  background: linear-gradient(135deg, var(--sol-accent) 0%, var(--sol-accent-3) 100%);
+}
+
+.btn-secondary {
+  @apply rounded px-3 py-2 border;
+  border-color: var(--sol-border);
+  background: #0b1224;
+  color: var(--sol-fg);
+}
+
+.input {
+  @apply rounded px-3 py-2 border w-full bg-transparent outline-none;
+  border-color: var(--sol-border);
+  color: var(--sol-fg);
+}
+
+.badge {
+  @apply text-xs px-2 py-0.5 rounded;
+  background: #10172a;
+  border: 1px solid var(--sol-border);
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #0e1530;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  animation: shimmer 1.2s infinite;
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
 }
