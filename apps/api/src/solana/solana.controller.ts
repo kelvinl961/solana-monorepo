@@ -29,6 +29,23 @@ export class SolanaController {
   ) {
     return this.solanaService.getBlockSummary(slot, commitment ?? 'confirmed');
   }
+
+  @Get('recent')
+  async getRecent(
+    @Query('limit', ParseIntPipe) limit = 20,
+    @Query('commitment', new ParseEnumPipe(['confirmed', 'finalized'], { optional: true })) commitment?: 'confirmed' | 'finalized',
+  ) {
+    return this.solanaService.getRecentCounts(limit, commitment ?? 'confirmed');
+  }
+
+  @Get('range/:start/:end')
+  async getRange(
+    @Param('start', ParseIntPipe) start: number,
+    @Param('end', ParseIntPipe) end: number,
+    @Query('commitment', new ParseEnumPipe(['confirmed', 'finalized'], { optional: true })) commitment?: 'confirmed' | 'finalized',
+  ) {
+    return this.solanaService.getRangeCounts(start, end, commitment ?? 'confirmed');
+  }
 }
 
 

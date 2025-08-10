@@ -79,6 +79,53 @@ export class SolanaService {
     await this.cache.set(cacheKey, summary, 10);
     return summary;
   }
+
+  async getRecentCounts(
+    limit: number,
+    commitment: 'confirmed' | 'finalized' = 'confirmed',
+  ): Promise<Array<{ slot: number; transactionCount: number }>> {
+    const latest = await this.getLatestSlot(commitment);
+    const results: Array<{ slot: number; transactionCount: number }> = [];
+    const safeLimit = Math.max(1, Math.min(200, Math.floor(limit)));
+    for (let i = 0; i < safeLimit; i += 1) {
+      const slot = latest - i;
+      if (slot < 0) break;
+      const transactionCount = await this.getTransactionCountForSlot(slot, commitment);
+      results.push({ slot, transactionCount });
+    }
+    return results;
+  }
+
+  async getRangeCounts(
+    start: number,
+    end: number,
+    commitment: 'confirmed' | 'finalized' = 'confirmed',
+  ): Promise<{
+    start: number;
+    end: number;
+    slots: Array<{ slot: number; transactionCount: number }>;
+    total: number;
+    average: number;
+    min: { slot: number; transactionCount: number } | null;
+    max: { slot: number; transactionCount: number } | null;
+  }> {
+    const rangeStart = Math.max(0, Math.min(start, end));
+    const rangeEnd = Math.max(0, Math.max(start, end));
+    const slots: Array<{ slot: number; transactionCount: number }> = [];
+    let total = 0;
+    let min: { slot: number; transactionCount: number } | null = null;
+    let max: { slot: number; transactionCount: number } | null = null;
+    for (let s = rangeStart; s <= rangeEnd; s += 1) {
+      const transactionCount = await this.getTransactionCountForSlot(s, commitment);
+      const item = { slot: s, transactionCount };
+      slots.push(item);
+      total += transactionCount;
+      if (!min || transactionCount < min.transactionCount) min = item;
+      if (!max || transactionCount > max.transactionCount) max = item;
+    }
+    const average = slots.length > 0 ? total / slots.length : 0;
+    return { start: rangeStart, end: rangeEnd, slots, total, average, min, max };
+  }
 }
 
 

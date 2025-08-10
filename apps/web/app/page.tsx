@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export default function Home() {
   const [slot, setSlot] = useState<string>("");
@@ -10,6 +10,10 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [explorer, setExplorer] = useState<'solscan' | 'solanafm' | 'explorer'>('solscan');
+  const [isLive, setIsLive] = useState<boolean>(false);
+  const [recent, setRecent] = useState<Array<{ slot: number; transactionCount: number }>>([]);
+  const [history, setHistory] = useState<number[]>([]);
+  const liveTimer = useRef<NodeJS.Timer | null>(null);
 
   const apiUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000", []);
 
@@ -30,6 +34,13 @@ export default function Home() {
         const data = (await res.json()) as { slot: number; transactionCount: number; blockTime?: number | null; parentSlot?: number; blockhash?: string };
         setCount(data.transactionCount);
         setMeta({ blockTime: data.blockTime ?? null, parentSlot: data.parentSlot, blockhash: data.blockhash });
+        // Update history (unique, latest first, max 10)
+        setHistory((prev) => {
+          const n = Number(slot);
+          const next = [n, ...prev.filter((s) => s !== n)].slice(0, 10);
+          localStorage.setItem('history', JSON.stringify(next));
+          return next;
+        });
       } catch (err: any) {
         if (err.name !== "AbortError") setError(err.message ?? "Failed to fetch");
       } finally {
@@ -46,7 +57,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${apiUrl}/block/latest`);
+      const res = await fetch(`${apiUrl}/block/latest?commitment=${commitment}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { slot: number };
       setSlot(String(data.slot));
@@ -56,6 +67,68 @@ export default function Home() {
       setLoading(false);
     }
   };
+
+  // Load persisted UI state
+  useEffect(() => {
+    try {
+      const savedSlot = localStorage.getItem('slot');
+      const savedCommit = localStorage.getItem('commitment');
+      const savedExplorer = localStorage.getItem('explorer');
+      const savedLive = localStorage.getItem('isLive');
+      const savedHistory = localStorage.getItem('history');
+      if (savedSlot) setSlot(savedSlot);
+      if (savedCommit === 'confirmed' || savedCommit === 'finalized') setCommitment(savedCommit);
+      if (savedExplorer === 'solscan' || savedExplorer === 'solanafm' || savedExplorer === 'explorer') setExplorer(savedExplorer);
+      if (savedLive === 'true') setIsLive(true);
+      if (savedHistory) setHistory(JSON.parse(savedHistory));
+    } catch {}
+    // Initial recent fetch
+    void (async () => {
+      try {
+        const res = await fetch(`${apiUrl}/block/recent?limit=30&commitment=${commitment}`);
+        if (res.ok) setRecent((await res.json()) as Array<{ slot: number; transactionCount: number }>);
+      } catch {}
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist state
+  useEffect(() => { localStorage.setItem('slot', slot); }, [slot]);
+  useEffect(() => { localStorage.setItem('commitment', commitment); }, [commitment]);
+  useEffect(() => { localStorage.setItem('explorer', explorer); }, [explorer]);
+  useEffect(() => { localStorage.setItem('isLive', String(isLive)); }, [isLive]);
+
+  // Live mode: poll latest slot periodically
+  useEffect(() => {
+    if (!isLive) {
+      if (liveTimer.current) clearInterval(liveTimer.current as unknown as number);
+      liveTimer.current = null;
+      return;
+    }
+    // Immediately fetch once
+    void useLatest();
+    const id = setInterval(async () => {
+      try {
+        const latestRes = await fetch(`${apiUrl}/block/latest?commitment=${commitment}`);
+        if (!latestRes.ok) return;
+        const latest = (await latestRes.json()) as { slot: number };
+        setSlot(String(latest.slot));
+        // Refresh recent sparkline too
+        const r = await fetch(`${apiUrl}/block/recent?limit=30&commitment=${commitment}`);
+        if (r.ok) setRecent((await r.json()) as Array<{ slot: number; transactionCount: number }>);
+      } catch {}
+    }, 3000);
+    liveTimer.current = id as unknown as NodeJS.Timer;
+    return () => { clearInterval(id); };
+  }, [isLive, apiUrl, commitment]);
+
+  const copyApiUrl = async () => {
+    const url = `${apiUrl}/block/${slot}/summary?commitment=${commitment}`;
+    try { await navigator.clipboard.writeText(url); } catch {}
+  };
+
+  const maxRecent = recent.length > 0 ? Math.max(...recent.map(r => r.transactionCount)) : 0;
+  const sparkBars = recent.slice().reverse();
 
   return (
     <div className="p-8 max-w-2xl mx-auto glass rounded-lg">
@@ -86,6 +159,9 @@ export default function Home() {
           >
             Use latest slot
           </button>
+          <label className="flex items-center gap-2 ml-2 text-sm" style={{ color: 'var(--sol-muted)' }}>
+            <input type="checkbox" checked={isLive} onChange={(e) => setIsLive(e.target.checked)} /> Live (3s)
+          </label>
         </div>
         <p className="text-sm" style={{ color: 'var(--sol-muted)' }}>Typing auto-fetches after 400ms. Old/missing slots may return 0. Choose commitment for consistency.</p>
       </div>
@@ -112,6 +188,9 @@ export default function Home() {
             <span className="badge">{commitment}</span>
           </div>
           <p className="text-2xl mt-2" style={{ color: 'var(--sol-accent)' }}>{count.toLocaleString()} transactions</p>
+          <div className="mt-2">
+            <button className="btn-secondary" onClick={copyApiUrl} type="button">Copy API URL</button>
+          </div>
           {meta && (
             <div className="mt-3 text-sm space-y-1" style={{ color: 'var(--sol-muted)' }}>
               {meta.blockTime !== undefined && (
@@ -142,6 +221,36 @@ export default function Home() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Recent sparkline */}
+      {recent.length > 0 && (
+        <div className="rounded border p-4 mt-6" style={{ borderColor: 'var(--sol-border)', background: '#0b1224' }}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="font-medium">Recent slots</p>
+            <span className="text-xs" style={{ color: 'var(--sol-muted)' }}>last {recent.length}</span>
+          </div>
+          <div className="flex items-end gap-[2px] h-20">
+            {sparkBars.map((r, idx) => {
+              const h = maxRecent ? Math.max(2, Math.round((r.transactionCount / maxRecent) * 72)) : 2;
+              return (
+                <div key={`${r.slot}-${idx}`} title={`slot ${r.slot}: ${r.transactionCount}`} style={{ height: `${h}px`, width: '6px', background: 'linear-gradient(180deg, var(--sol-accent), #0b1224)' }} />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* History */}
+      {history.length > 0 && (
+        <div className="rounded border p-4 mt-6" style={{ borderColor: 'var(--sol-border)', background: '#0b1224' }}>
+          <p className="font-medium mb-2">Recent lookups</p>
+          <div className="flex flex-wrap gap-2">
+            {history.map((s) => (
+              <button key={s} className="btn-secondary" onClick={() => setSlot(String(s))} type="button">{s}</button>
+            ))}
+          </div>
         </div>
       )}
     </div>
