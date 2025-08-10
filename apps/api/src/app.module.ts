@@ -21,18 +21,26 @@ import { HealthController } from './health.controller';
     ] }),
     CacheModule.registerAsync({
       isGlobal: true,
-      useFactory: async () => ({
-        ttl: 10,
-        max: 1000,
-        store: await redisStore({
-          // cache-manager-ioredis-yet expects host/port/password/db instead of URL
-          host: process.env.REDIS_HOST || '127.0.0.1',
-          port: Number(process.env.REDIS_PORT || '6379'),
-          password: process.env.REDIS_PASSWORD,
-          db: Number(process.env.REDIS_DB || '0'),
-          keyPrefix: 'solona:',
-        } as any),
-      }),
+      useFactory: async () => {
+        const hasRedis = !!process.env.REDIS_HOST;
+        if (!hasRedis) {
+          return {
+            ttl: 10,
+            max: 1000,
+          };
+        }
+        return {
+          ttl: 10,
+          max: 1000,
+          store: await redisStore({
+            host: process.env.REDIS_HOST,
+            port: Number(process.env.REDIS_PORT || '6379'),
+            password: process.env.REDIS_PASSWORD,
+            db: Number(process.env.REDIS_DB || '0'),
+            keyPrefix: 'solona:',
+          } as any),
+        };
+      },
     }),
     ThrottlerModule.forRoot([
       {
